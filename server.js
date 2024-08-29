@@ -7,9 +7,11 @@ const { MongoClient, ObjectId } = require('mongodb');
 const port = 3000;
 let db;
 
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/messageBoard';
+
 function connectMb() {
     try {
-        const client = new MongoClient('mongodb://localhost:27017');
+        const client = new MongoClient(mongoUri);
         client.connect();
         console.log('連接MongoDB成功');
         db = client.db('messageBoard');
