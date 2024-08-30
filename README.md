@@ -23,6 +23,5 @@ This is a practice project focusing on Node.js, MongoDB, RESTful API and Docker.
 - 更改留言  
 
 
-##### clone下來之後確認docker, docker compose已經安裝
-##### 使用sudo docker compose up --build，再用瀏覽器執行http://localhost:3000
-##### 即可看到留言版，可以使用增刪查改功能（資料庫已經包含在Docker中）。
+##### clone下來之後build，再用瀏覽器執行http://localhost:3000
+##### 即可看到留言版，可以使用增刪查改功能（資料庫已經包含在Docker中，所以可能build要比較久）。
