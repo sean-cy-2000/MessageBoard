@@ -50,33 +50,28 @@
     </div>
 
     <script>
-        // 使用立即執行函數表達式 (IIFE) 來封裝邏輯，避免全局變量污染
         (() => {
             const messageList = document.getElementById('messageList');
 
-            // 使用 async/await 和箭頭函數
             const fetchMessages = async () => {
                 try {
                     const response = await fetch('/api/messages');
                     const data = await response.json();
-                    // 使用 map 和模板字符串來生成 HTML
-                    messageList.innerHTML = data.map(({ _id, text }) => `
+                    messageList.innerHTML = data.map(({ id, text }) => `
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center">
-                                <input type="checkbox" class="form-check-input me-2" data-id="${_id}">
+                                <input type="checkbox" class="form-check-input me-2" data-id="${id}">
                                 <span class="message-text">${text}</span>
                                 <input type="text" class="form-control d-none message-input" value="${text}">
                             </div>
-                            <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${_id}">編輯</button>
+                            <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${id}">編輯</button>
                         </li>
                     `).join('');
-                    addEditListeners();
                 } catch (error) {
                     console.error('錯誤訊息:', error);
                 }
             };
 
-            // 使用事件委託來處理編輯按鈕點擊
             messageList.addEventListener('click', async (event) => {
                 if (event.target.classList.contains('edit-btn')) {
                     const button = event.target;
@@ -111,28 +106,23 @@
                 }
             };
 
-            // 使用 Promise.all 來並行處理多個請求
             const deleteSelectedMessages = async () => {
                 const checkboxes = document.querySelectorAll('.form-check-input:checked');
                 const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
                 if (ids.length === 0) return;
 
                 try {
-                    await Promise.all([
-                        fetch('/api/messages', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ids })
-                        }),
-                        ...ids.map(id => fetch(`/api/messages/${id}`, { method: 'DELETE' }))
-                    ]);
+                    await fetch('/api/messages', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids })
+                    });
                     fetchMessages();
                 } catch (error) {
                     console.error('刪除錯誤:', error);
                 }
             };
 
-            // 使用物件字面量和箭頭函數來定義事件處理器
             const eventHandlers = {
                 addMessage: async () => {
                     const newMessage = document.getElementById('newMessage').value;
@@ -152,10 +142,16 @@
                 },
                 deleteAllMessages: async () => {
                     try {
-                        await fetch('/api/messages', { method: 'DELETE' });
+                        const response = await fetch('/api/messages', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (!response.ok) {
+                            throw new Error('Failed to delete all messages');
+                        }
                         fetchMessages();
                     } catch (error) {
-                        console.error('錯誤訊息:', error);
+                        console.error('刪除所有留言錯誤:', error);
                     }
                 },
                 searchMessages: async () => {
@@ -164,17 +160,16 @@
                         const response = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`);
                         const data = await response.json();
                         if (Array.isArray(data)) {
-                            messageList.innerHTML = data.map(({ _id, text }) => `
+                            messageList.innerHTML = data.map(({ id, text }) => `
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
-                                        <input type="checkbox" class="form-check-input me-2" data-id="${_id}">
+                                        <input type="checkbox" class="form-check-input me-2" data-id="${id}">
                                         <span class="message-text">${text}</span>
                                         <input type="text" class="form-control d-none message-input" value="${text}">
                                     </div>
-                                    <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${_id}">編輯</button>
+                                    <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${id}">編輯</button>
                                 </li>
                             `).join('');
-                            addEditListeners();
                         } else {
                             console.error('搜索結果格式不正確');
                         }
@@ -184,7 +179,6 @@
                 }
             };
 
-            // 使用物件解構和箭頭函數來簡化事件監聽器的添加
             const { addMessage, deleteAllMessages, searchMessages } = eventHandlers;
             document.getElementById('addMessage').addEventListener('click', addMessage);
             document.getElementById('deleteMessages').addEventListener('click', deleteAllMessages);
@@ -192,7 +186,6 @@
             document.getElementById('searchButton').addEventListener('click', searchMessages);
             document.getElementById('getMessages').addEventListener('click', fetchMessages);
 
-            // 初始加載留言
             fetchMessages();
         })();
     </script>

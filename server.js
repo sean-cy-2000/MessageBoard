@@ -2,26 +2,32 @@ const http = require('http');
 const fs = require('fs').promises;
 const path = require('path');
 const { URL } = require('url');
-const { MongoClient, ObjectId } = require('mongodb');
+const redis = require('redis');
+const { promisify } = require('util');
 
 const port = 3000;
-let db;
+let client;
+let getAsync, setAsync, delAsync, keysAsync;
 
-const mongoUri = process.env.mongo_url || 'mongodb://localhost:27017/messageBoard';
+// 連接到 Redis
+function connectRedis() {
+    const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
+    client = redis.createClient(redisUrl);
 
-function connectMb() {
-    try {
-        const client = new MongoClient(mongoUri);
-        client.connect();
-        console.log('連接MongoDB成功');
-        db = client.db('messageBoard');
-    } catch (errMessage) {
-        console.error('連接MongoDB失敗:', errMessage);
-        process.exit(1);
-    }
+    client.on('error', (err) => {
+        console.error('Redis 連接錯誤:', err);
+    });
+
+    client.on('connect', () => {
+        console.log('連接 Redis 成功');
+        // 在連接成功後初始化 promisify 函數
+        getAsync = promisify(client.get).bind(client);
+        setAsync = promisify(client.set).bind(client);
+        delAsync = promisify(client.del).bind(client);
+        keysAsync = promisify(client.keys).bind(client);
+    });
 }
 
-// 使用 async/await 和解構賦值來處理請求
 const server = http.createServer(async (req, res) => {
     const { method, url } = req;
 
@@ -34,8 +40,8 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('連接伺服器失敗');
         }
-    } 
-    
+    }
+
     else if (url.startsWith('/api/messages/')) {
         const id = url.split('/').pop();
         if (method === 'PUT') {
@@ -43,27 +49,28 @@ const server = http.createServer(async (req, res) => {
             req.on('data', chunk => body += chunk.toString());
             req.on('end', async () => {
                 const { text } = JSON.parse(body);
-                await db.collection('messages').updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: { text } }
-                );
+                await setAsync(`message:${id}`, text);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: '數據更新' }));
+                res.end(JSON.stringify({ message: '數據更新成功' }));
             });
         } else if (method === 'DELETE') {
-            await db.collection('messages').deleteOne({ _id: new ObjectId(id) });
+            await delAsync(`message:${id}`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Message deleted' }));
+            res.end(JSON.stringify({ message: '刪除成功' }));
         } else {
             res.writeHead(405, { 'Content-Type': 'text/plain' });
             res.end('Method Not Allowed');
         }
-    } 
-    
+    }
+
     else if (url === '/api/messages') {
         switch (method) {
             case 'GET':
-                const messages = await db.collection('messages').find().toArray();
+                const keys = await keysAsync('message:*');
+                const messages = await Promise.all(keys.map(async key => {
+                    const text = await getAsync(key);
+                    return { id: key.split(':')[1], text };
+                }));
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(messages));
                 break;
@@ -72,25 +79,36 @@ const server = http.createServer(async (req, res) => {
                 req.on('data', chunk => body += chunk.toString());
                 req.on('end', async () => {
                     const { text } = JSON.parse(body);
-                    const result = await db.collection('messages').insertOne({ text });
+                    const id = Date.now().toString();
+                    await setAsync(`message:${id}`, text);
                     res.writeHead(201, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ message: 'Message added', id: result.insertedId }));
+                    res.end(JSON.stringify({ message: '新增成功', id }));
                 });
                 break;
             case 'DELETE':
                 let deleteBody = '';
                 req.on('data', chunk => deleteBody += chunk.toString());
                 req.on('end', async () => {
-                    const { ids } = deleteBody ? JSON.parse(deleteBody) : {};
-                    if (ids && ids.length > 0) {
-                        await db.collection('messages').deleteMany({
-                            _id: { $in: ids.map(id => new ObjectId(id)) }
-                        });
-                    } else {
-                        await db.collection('messages').deleteMany({});
+                    let ids = [];
+                    if (deleteBody) {
+                        try {
+                            const parsed = JSON.parse(deleteBody);
+                            ids = parsed.ids || [];
+                        } catch (error) {
+                            console.error('解析 JSON 時出錯:', error);
+                        }
                     }
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ message: 'Messages deleted' }));
+
+                    if (ids.length > 0) {
+                        await Promise.all(ids.map(id => delAsync(`message:${id}`)));
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ message: '選中的留言已刪除' }));
+                    } else {
+                        const allKeys = await keysAsync('message:*');
+                        await Promise.all(allKeys.map(key => delAsync(key)));
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ message: '所有留言已刪除' }));
+                    }
                 });
                 break;
             default:
@@ -103,11 +121,17 @@ const server = http.createServer(async (req, res) => {
             const keyword = searchParams.get('keyword');
             if (keyword) {
                 try {
-                    const results = await db.collection('messages').find({
-                        text: { $regex: keyword, $options: 'i' }
-                    }).toArray();
+                    const keys = await keysAsync('message:*');
+                    const results = await Promise.all(keys.map(async key => {
+                        const text = await getAsync(key);
+                        if (text.toLowerCase().includes(keyword.toLowerCase())) {
+                            return { id: key.split(':')[1], text };
+                        }
+                        return null;
+                    }));
+                    const filteredResults = results.filter(result => result !== null);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(results));
+                    res.end(JSON.stringify(filteredResults));
                 } catch (error) {
                     console.error('搜索錯誤:', error);
                     res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -128,7 +152,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 async function startServer() {
-    await connectMb();
+    connectRedis();
     server.listen(port, () => {
         console.log(`正在執行： http://localhost:${port}/`);
     });

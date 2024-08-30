@@ -1,32 +1,26 @@
 version: '3'
 # Docker Compose 的版本
 
-# services是主要的服務，定義app, mongo兩個主機
 services:
   app:
     build: .
-    # '.'代表當前位置，build在當前位置建立service
-    container_name: messageboard-app
+    container_name: messageboard-app-redis-ver
     ports:
       - "3000:3000"
-      # 將docker中的prot 3000對應告電腦的prot 3000
     depends_on:
-      - mongo
-      # 依賴mongo，代表app會在其執行之後才執行
+      - redis
     environment:
-      - mongo_url=mongodb://mongo:27017/messageBoard
-      # 在docker中運行的主機名稱，跟'mongodb://localhost:27017/messageBoard'有點像
-      # 對應後端的 const mongoUri = process.env.mongo_url
+      - redis_rul=redis://redis:6379
+      # 使用 Redis URL 替代原來的 MongoDB URL
 
-  mongo:
-    image: mongo:latest
-    container_name: messageboard-db
+  redis:
+    image: redis:alpine
+    container_name: messageboard-db-redis-ver
     ports:
-      - "27017:27017"
+      - "6379:6379"
     volumes:
-      - mongodb_data:/data/db
-      # 建力名為 mongodb_data 的 volume，位於 /data/db
+      - redis_data:/data
 
 volumes:
-  mongodb_data:
-  # 再宣告一次建立mongodb_data，暫時還沒搞懂為什麼
+  redis_data:
+  # 使用 Redis 數據卷替代 MongoDB 數據卷

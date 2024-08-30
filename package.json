@@ -12,15 +12,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "fs": "^0.0.1-security",
-    "http": "^0.0.1-security",
-    "mongodb": "^6.8.0",
-    "path": "^0.12.7"
+    "redis": "^3.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   },
   "engines": {
-    "node": ">=20.16.0"
+    "node": ">=14.0.0"
   }
 }
