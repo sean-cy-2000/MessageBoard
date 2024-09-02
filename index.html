@@ -11,185 +11,155 @@
 <body>
     <div class="container mt-5">
         <!-- 新增留言區 -->
-        <div class="row mb-3">
-            <div class="col-md-8">
-                <input type="text" id="newMessage" class="form-control" placeholder="輸入新留言">
-            </div>
-            <div class="col-md-4">
-                <button id="addMessage" class="btn btn-primary w-100">新增留言</button>
-            </div>
+        <div class="mb-3 d-flex">
+            <input type="text" id="newMessage" class="form-control me-2" placeholder="輸入新留言">
+            <button id="addMessage" class="btn btn-primary">新增留言</button>
         </div>
 
         <!-- 功能按鈕區 -->
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <button id="getMessages" class="btn btn-secondary w-100">刷新</button>
-            </div>
-            <div class="col-md-3">
-                <button id="deleteMessages" class="btn btn-danger w-100">刪除所有</button>
-            </div>
-            <div class="col-md-3">
-                <button id="deleteSelectedMessages" class="btn btn-warning w-100">刪除選取</button>
-            </div>
-            <div class="col-md-3">
-                <button id="searchButton" class="btn btn-info w-100">搜尋</button>
-            </div>
+        <div class="mb-3 d-flex justify-content-between">
+            <button id="getMessages" class="btn btn-secondary flex-fill me-2">刷新</button>
+            <button id="deleteMessages" class="btn btn-danger flex-fill me-2">刪除所有</button>
+            <button id="deleteSelectedMessages" class="btn btn-warning flex-fill me-2">刪除選取</button>
+            <button id="searchButton" class="btn btn-info flex-fill">搜尋</button>
         </div>
 
         <!-- 搜尋區 -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <input type="text" id="searchKeyword" class="form-control" placeholder="輸入搜尋關鍵字">
-            </div>
+        <div class="mb-3">
+            <input type="text" id="searchKeyword" class="form-control" placeholder="輸入搜尋關鍵字">
         </div>
 
         <!-- 留言列表區 -->
-        <div class="mt-4">
-            <ul id="messageList" class="list-group"></ul>
-        </div>
+        <ul id="messageList" class="list-group"></ul>
     </div>
 
     <script>
-        (() => {
-            const messageList = document.getElementById('messageList');
-
-            const fetchMessages = async () => {
+        // 增
+        const addMessage = async () => {
+            const newMessage = document.getElementById('newMessage').value;
+            if (newMessage) {
                 try {
-                    const response = await fetch('/api/messages');
-                    const data = await response.json();
-                    messageList.innerHTML = data.map(({ _id, text }) => `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div class="d-flex align-items-center">
-                                <input type="checkbox" class="form-check-input me-2" data-id="${_id}">
-                                <span class="message-text">${text}</span>
-                                <input type="text" class="form-control d-none message-input" value="${text}">
-                            </div>
-                            <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${_id}">編輯</button>
-                        </li>
-                    `).join('');
-                    addEditListeners();
-                } catch (error) {
-                    console.error('錯誤訊息:', error);
-                }
-            };
-
-            // 改
-            messageList.addEventListener('click', async (event) => {
-                if (event.target.classList.contains('edit-btn')) {
-                    const button = event.target;
-                    const li = button.closest('li');
-                    const messageText = li.querySelector('.message-text');
-                    const messageInput = li.querySelector('.message-input');
-
-                    if (button.textContent === '編輯') {
-                        messageText.classList.add('d-none');
-                        messageInput.classList.remove('d-none');
-                        button.textContent = '確定';
-                    } else {
-                        await updateMessage(button.dataset.id, messageInput.value);
-                        messageText.textContent = messageInput.value;
-                        messageText.classList.remove('d-none');
-                        messageInput.classList.add('d-none');
-                        button.textContent = '編輯';
-                    }
-                }
-            });
-
-            const updateMessage = async (id, newText) => {
-                try {
-                    const response = await fetch(`/api/messages/${id}`, {
-                        method: 'PUT',
+                    await fetch('/api/messages', {
+                        method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: newText })
+                        body: JSON.stringify({ text: newMessage })
                     });
-                    if (!response.ok) throw new Error('Failed to update message');
+                    document.getElementById('newMessage').value = '';
+                    fetchMessages(); // 新增後要刷新
                 } catch (error) {
-                    console.error('更新錯誤:', error);
+                    console.error('新增留言錯誤:', error);
                 }
-            };
+            }
+        };
 
-            // 刪
-            const deleteSelectedMessages = async () => {
-                const checkboxes = document.querySelectorAll('.form-check-input:checked');
-                const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
-                if (ids.length === 0) return;
+        // 刪除選取
+        const deleteSelectedMessages = async () => {
+            const ids = Array.from(document.querySelectorAll('.form-check-input:checked')).map(cb => cb.dataset.id);
+            if (ids.length === 0) return;
 
-                try {
-                    await Promise.all([
-                        fetch('/api/messages', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ids })
-                        }),
-                        ...ids.map(id => fetch(`/api/messages/${id}`, { method: 'DELETE' }))
-                    ]);
-                    fetchMessages();
-                } catch (error) {
-                    console.error('刪除錯誤:', error);
-                }
-            };
+            try {
+                await fetch('/api/messages', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+                fetchMessages(); // 刪除後刷新
+            } catch (error) {
+                console.error('刪除留言錯誤:', error);
+            }
+        };
 
-            const eventHandlers = {
-                addMessage: async () => {
-                    const newMessage = document.getElementById('newMessage').value;
-                    if (newMessage) {
-                        try {
-                            await fetch('/api/messages', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text: newMessage })
-                            });
-                            document.getElementById('newMessage').value = '';
-                            fetchMessages();
-                        } catch (error) {
-                            console.error('錯誤訊息:', error);
-                        }
-                    }
-                },
-                deleteAllMessages: async () => {
-                    try {
-                        await fetch('/api/messages', { method: 'DELETE' });
-                        fetchMessages();
-                    } catch (error) {
-                        console.error('錯誤訊息:', error);
-                    }
-                },
-                searchMessages: async () => {
-                    const keyword = document.getElementById('searchKeyword').value;
-                    try {
-                        const response = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`);
-                        const data = await response.json();
-                        if (Array.isArray(data)) {
-                            messageList.innerHTML = data.map(({ _id, text }) => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center">
-                                        <input type="checkbox" class="form-check-input me-2" data-id="${_id}">
-                                        <span class="message-text">${text}</span>
-                                        <input type="text" class="form-control d-none message-input" value="${text}">
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${_id}">編輯</button>
-                                </li>
-                            `).join('');
-                            addEditListeners();
-                        } else {
-                            console.error('搜索結果格式不正確');
-                        }
-                    } catch (error) {
-                        console.error('搜索錯誤:', error);
-                    }
-                }
-            };
+        // 刪除所有
+        const deleteAllMessages = async () => {
+            try {
+                await fetch('/api/messages', { method: 'DELETE' });
+                fetchMessages();
+            } catch (error) {
+                console.error('刪除所有留言錯誤:', error);
+            }
+        };
 
-            const { addMessage, deleteAllMessages, searchMessages } = eventHandlers;
-            document.getElementById('addMessage').addEventListener('click', addMessage);
-            document.getElementById('deleteMessages').addEventListener('click', deleteAllMessages);
-            document.getElementById('deleteSelectedMessages').addEventListener('click', deleteSelectedMessages);
-            document.getElementById('searchButton').addEventListener('click', searchMessages);
-            document.getElementById('getMessages').addEventListener('click', fetchMessages);
+        // 查
+        const searchMessages = async () => {
+            const keyword = document.getElementById('searchKeyword').value;
+            try {
+                const response = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                renderMessages(data); // 渲染搜尋結果
+            } catch (error) {
+                console.error('搜尋留言錯誤:', error);
+            }
+        };
 
-            fetchMessages();
-        })();
+        // 改
+        const updateMessage = async (id, newText) => {
+            try {
+                const response = await fetch(`/api/messages/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: newText })
+                });
+                if (!response.ok) throw new Error('更新留言失敗');
+            } catch (error) {
+                console.error('更新留言錯誤:', error);
+            }
+        };
+
+        // 用input改動留言
+        const renderMessages = (messages) => {
+            const messageList = document.getElementById('messageList');
+            messageList.innerHTML = ''; // 清空列表
+
+            messages.forEach(({ _id, text }) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex align-items-center';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input me-2';
+                checkbox.dataset.id = _id;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control flex-fill message-input';
+                input.value = text;
+                input.dataset.id = _id;
+
+                // 當input框失去焦點時更新留言
+                input.addEventListener('blur', async (event) => {
+                    const newText = event.target.value;
+                    await updateMessage(_id, newText); // 更新留言
+                });
+
+                li.appendChild(checkbox);
+                li.appendChild(input);
+                messageList.appendChild(li);
+            });
+        };
+
+
+        // 刷新的function
+        const fetchMessages = async () => {
+            try {
+                const response = await fetch('/api/messages');
+                const data = await response.json();
+                renderMessages(data);
+            } catch (error) {
+                console.error('獲取留言錯誤:', error);
+            }
+        };
+
+        // 綁定按鈕
+        document.getElementById('addMessage').addEventListener('click', addMessage);
+        document.getElementById('deleteMessages').addEventListener('click', deleteAllMessages);
+        document.getElementById('deleteSelectedMessages').addEventListener('click', deleteSelectedMessages);
+        document.getElementById('searchButton').addEventListener('click', searchMessages);
+        document.getElementById('getMessages').addEventListener('click', fetchMessages);
+
+        // 一開始刷新
+        fetchMessages();
     </script>
+
 </body>
 
 </html>

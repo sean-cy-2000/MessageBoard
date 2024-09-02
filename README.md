@@ -6,8 +6,6 @@
 
 這是一個關於 Node.js, MongoDB, RESTful API 和 Docker 的練習專案。
 
-This is a practice project focusing on Node.js, MongoDB, RESTful API and Docker.
-
 #### 技術 | Tech Stack
 
 - Node.js

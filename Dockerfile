@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:latest
 # 所使用的nodejs版本
 
 WORKDIR /usr/src/app
