@@ -21,7 +21,6 @@ function connectMb() {
     }
 }
 
-// 使用 async/await 和解構賦值來處理請求
 const server = http.createServer(async (req, res) => {
     const { method, url } = req;
 

@@ -50,16 +50,13 @@
     </div>
 
     <script>
-        // 使用立即執行函數表達式 (IIFE) 來封裝邏輯，避免全局變量污染
         (() => {
             const messageList = document.getElementById('messageList');
 
-            // 使用 async/await 和箭頭函數
             const fetchMessages = async () => {
                 try {
                     const response = await fetch('/api/messages');
                     const data = await response.json();
-                    // 使用 map 和模板字符串來生成 HTML
                     messageList.innerHTML = data.map(({ _id, text }) => `
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center">
@@ -76,7 +73,7 @@
                 }
             };
 
-            // 使用事件委託來處理編輯按鈕點擊
+            // 改
             messageList.addEventListener('click', async (event) => {
                 if (event.target.classList.contains('edit-btn')) {
                     const button = event.target;
@@ -111,7 +108,7 @@
                 }
             };
 
-            // 使用 Promise.all 來並行處理多個請求
+            // 刪
             const deleteSelectedMessages = async () => {
                 const checkboxes = document.querySelectorAll('.form-check-input:checked');
                 const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
@@ -132,7 +129,6 @@
                 }
             };
 
-            // 使用物件字面量和箭頭函數來定義事件處理器
             const eventHandlers = {
                 addMessage: async () => {
                     const newMessage = document.getElementById('newMessage').value;
@@ -184,7 +180,6 @@
                 }
             };
 
-            // 使用物件解構和箭頭函數來簡化事件監聽器的添加
             const { addMessage, deleteAllMessages, searchMessages } = eventHandlers;
             document.getElementById('addMessage').addEventListener('click', addMessage);
             document.getElementById('deleteMessages').addEventListener('click', deleteAllMessages);
@@ -192,7 +187,6 @@
             document.getElementById('searchButton').addEventListener('click', searchMessages);
             document.getElementById('getMessages').addEventListener('click', fetchMessages);
 
-            // 初始加載留言
             fetchMessages();
         })();
     </script>
