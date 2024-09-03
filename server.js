@@ -33,8 +33,8 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('連接伺服器失敗');
         }
-    } 
-    
+    }
+
     else if (url.startsWith('/api/messages/')) {
         const id = url.split('/').pop();
         if (method === 'PUT') {
@@ -57,8 +57,8 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(405, { 'Content-Type': 'text/plain' });
             res.end('Method Not Allowed');
         }
-    } 
-    
+    }
+
     else if (url === '/api/messages') {
         switch (method) {
             case 'GET':
@@ -97,28 +97,22 @@ const server = http.createServer(async (req, res) => {
                 res.end('Method Not Allowed');
         }
     } else if (url.startsWith('/api/search')) {
-        if (method === 'GET') {
+        try {
+            if (method !== 'GET') throw new Error('方法不允許');
+
             const { searchParams } = new URL(url, `http://${req.headers.host}`);
             const keyword = searchParams.get('keyword');
-            if (keyword) {
-                try {
-                    const results = await db.collection('messages').find({
-                        text: { $regex: keyword, $options: 'i' }
-                    }).toArray();
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(results));
-                } catch (error) {
-                    console.error('搜索錯誤:', error);
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: '搜索過程中發生錯誤' }));
-                }
-            } else {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: '缺少搜索關鍵字' }));
-            }
-        } else {
-            res.writeHead(405, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: '方法不允許' }));
+            if (!keyword) throw new Error;
+
+            const results = await db.collection('messages').find({
+                text: { $regex: keyword, $options: 'i' }
+            }).toArray();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(results));
+        } catch (error) {
+            console.error('搜索錯誤:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: '搜索錯誤' }));
         }
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
